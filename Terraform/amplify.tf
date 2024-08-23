@@ -1,6 +1,6 @@
 resource "aws_amplify_app" "example" {
   name        = "frontendBooks"
-  repository  = "https://github.com/Marouankl/ProjetAws"
+  repository  = "https://github.com/Marouankl/projetcloud"
   oauth_token = "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"  # Replace with your GitHub token
 
   build_spec = jsonencode({
@@ -13,7 +13,6 @@ resource "aws_amplify_app" "example" {
             preBuild = {
               commands = [
                 "npm install",  # Install all dependencies, including devDependencies
-                "export PATH=$(npm bin):$PATH"  # Ensure local node_modules binaries are in the PATH
               ]
             }
             build = {
