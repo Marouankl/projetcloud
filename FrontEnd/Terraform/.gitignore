@@ -1,0 +1,8 @@
+# Ignorer les répertoires Terraform
+.terraform/
+
+# Ignorer les répertoires Node.js
+node_modules/
+
+# Ignorer les répertoires Lambda ZIP
+lamda.zip/
