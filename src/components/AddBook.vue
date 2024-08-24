@@ -38,7 +38,7 @@ const uploadToS3 = async (file) => {
   formData.append('file', file);
 
   try {
-    const response = await axios.post('https://your-api-endpoint/upload', formData, {
+    const response = await axios.post('https://8sddxq83tf.execute-api.us-east-1.amazonaws.com/prod/books/upload', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },

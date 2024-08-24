@@ -7,7 +7,7 @@ resource "aws_amplify_app" "example" {
     version      = 1
     applications = [
       {
-        appRoot = "FrontEnd"  # Specify the root directory of the application
+        appRoot = "."  # The project is in the root directory of the repository
         frontend = {
           phases = {
             preBuild = {
@@ -22,14 +22,14 @@ resource "aws_amplify_app" "example" {
             }
           }
           artifacts = {
-            baseDirectory = "FrontEnd/dist"  # Directory where build artifacts are located
+            baseDirectory = "dist"  # Ensure this is correct for your build output
             files         = [
               "**/*"
             ]
           }
           cache = {
             paths = [
-              "FrontEnd/node_modules/**/*"  # Cache the Node.js modules
+              "node_modules/**/*"  # Cache the Node.js modules
             ]
           }
         }
