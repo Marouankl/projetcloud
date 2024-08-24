@@ -2,20 +2,25 @@
   <div>
     <label for="title">Book Title:</label>
     <input id="title" v-model="title" placeholder="Book Title" />
-    
+
     <label for="description">Description:</label>
     <input id="description" v-model="description" placeholder="Description" />
-    
+
     <label for="prix">Prix:</label>
     <input id="prix" v-model="prix" placeholder="Prix" type="number" />
-    
+
     <label for="author">Author:</label>
     <input id="author" v-model="author" placeholder="Author" />
-    
+
     <label for="coverImage">Cover Image:</label>
     <input id="coverImage" type="file" @change="uploadFile" />
-    
+
     <button @click="addBook">Add Book</button>
+
+    <!-- Affichage des messages d'erreur ou de succès -->
+    <div v-if="message" :class="{'error': isError, 'success': !isError}">
+      {{ message }}
+    </div>
   </div>
 </template>
 
@@ -28,64 +33,56 @@ const description = ref('');
 const prix = ref(0);
 const author = ref('');
 const file = ref(null);
+const message = ref('');
+const isError = ref(false);
 
+// Fonction pour capturer le fichier sélectionné
 const uploadFile = (event) => {
   file.value = event.target.files[0];
 };
 
-const uploadToS3 = async (file) => {
+// Fonction pour ajouter un livre
+const addBook = async () => {
+  message.value = '';
+  isError.value = false;
+
+  if (!file.value) {
+    isError.value = true;
+    message.value = 'Please select a cover image';
+    return;
+  }
+
   const formData = new FormData();
-  formData.append('file', file);
+  formData.append('title', title.value);
+  formData.append('description', description.value);
+  formData.append('prix', prix.value);
+  formData.append('author', author.value);
+  formData.append('file', file.value);
 
   try {
-    const response = await axios.post('https://8sddxq83tf.execute-api.us-east-1.amazonaws.com/prod/books/upload', formData, {
+    // Envoi des données du livre et du fichier d'image dans une seule requête POST
+    const response = await axios.post('https://8sddxq83tf.execute-api.us-east-1.amazonaws.com/prod/books', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
     });
-    return response.data.fileName; // Assumes the API returns the file name
+
+    console.log('Book added successfully:', response.data);
+    message.value = 'Book added successfully!';
+    
+    // Réinitialiser les champs après l'ajout
+    title.value = '';
+    description.value = '';
+    prix.value = 0;
+    author.value = '';
+    file.value = null;
   } catch (error) {
-    console.error('Error uploading file:', error);
-    throw error;
-  }
-};
-
-const addBook = async () => {
-  if (file.value) {
-    try {
-      const fileName = await uploadToS3(file.value);
-
-      const book = {
-        title: title.value,
-        description: description.value,
-        prix: parseFloat(prix.value),
-        author: author.value,
-        coverImage: fileName,
-      };
-
-      const response = await axios.post('https://8sddxq83tf.execute-api.us-east-1.amazonaws.com/prod/books', book, {
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      console.log('Book added successfully:', response.data);
-      // Réinitialiser les champs après l'ajout
-      title.value = '';
-      description.value = '';
-      prix.value = 0;
-      author.value = '';
-      file.value = null;
-    } catch (error) {
-      console.error('Error adding book:', error);
-    }
-  } else {
-    console.error('No file selected');
+    console.error('Error adding book:', error);
+    isError.value = true;
+    message.value = 'Error adding book';
   }
 };
 </script>
-
-
 
 <style scoped>
 label {
@@ -114,5 +111,15 @@ button {
 
 button:hover {
   background-color: #0056b3;
+}
+
+.error {
+  color: red;
+  margin-top: 1rem;
+}
+
+.success {
+  color: green;
+  margin-top: 1rem;
 }
 </style>

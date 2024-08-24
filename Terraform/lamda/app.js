@@ -97,26 +97,9 @@ app.get(path + hashKeyPath, async (req, res) => {
 });
 
 // HTTP Get method for getting a single DynamoDB object
-app.get('/books/:id' + hashKeyPath + sortKeyPath, async (req, res) => {
+app.get('/books/:id', async (req, res) => {
   const params = {};
-  if (userIdPresent && req.apiGateway) {
-    params[partitionKeyName] = req.apiGateway.event.requestContext.identity.cognitoIdentityId || UNAUTH;
-  } else {
-    params[partitionKeyName] = req.params[partitionKeyName];
-    try {
-      params[partitionKeyName] = convertUrlType(req.params[partitionKeyName], partitionKeyType);
-    } catch (err) {
-      return res.status(500).json({error: 'Wrong column type: ' + err.message});
-    }
-  }
-
-  if (hasSortKey) {
-    try {
-      params[sortKeyName] = convertUrlType(req.params[sortKeyName], sortKeyType);
-    } catch (err) {
-      return res.status(500).json({error: 'Wrong column type: ' + err.message});
-    }
-  }
+  params[partitionKeyName] = convertUrlType(req.params[partitionKeyName], partitionKeyType);
 
   const getItemParams = {
     TableName: tableName,
@@ -134,7 +117,7 @@ app.get('/books/:id' + hashKeyPath + sortKeyPath, async (req, res) => {
 // HTTP Put method for inserting DynamoDB object
 app.put(path, async (req, res) => {
   if (!req.body[partitionKeyName]) {
-    return res.status(400).json({ error: `Missing required key: ${partitionKeyName}` });
+    req.body[partitionKeyName] = Date.now();  // Génération d'un ID unique basé sur l'heure actuelle
   }
 
   const putItemParams = {
@@ -150,10 +133,11 @@ app.put(path, async (req, res) => {
   }
 });
 
+
 // HTTP Post method for inserting DynamoDB object
 app.post(path, async (req, res) => {
   if (!req.body[partitionKeyName]) {
-    return res.status(400).json({ error: `Missing required key: ${partitionKeyName}` });
+    req.body[partitionKeyName] = Date.now();  // Génération d'un ID unique basé sur l'heure actuelle
   }
 
   const putItemParams = {
@@ -206,7 +190,7 @@ app.delete(path + '/object' + hashKeyPath + sortKeyPath, async (req, res) => {
 
 // S3 Routes
 // Upload file to S3
-app.post('/upload', async (req, res) => {
+app.post(path, async (req, res) => {
   const { fileName, fileContent } = req.body;
 
   if (!fileName || !fileContent) {
@@ -217,7 +201,8 @@ app.post('/upload', async (req, res) => {
     const command = new PutObjectCommand({
       Bucket: BUCKET_NAME,
       Key: fileName,
-      Body: Buffer.from(fileContent, 'base64'),
+      Body: Buffer.from(fileContent, 'base64'), // Encodage en base64
+      ContentEncoding: 'base64', // Encodage défini comme base64
     });
     await s3Client.send(command);
     res.json({ success: 'File uploaded successfully' });
@@ -227,7 +212,7 @@ app.post('/upload', async (req, res) => {
 });
 
 // List files in S3 bucket
-app.get('/list', async (req, res) => {
+app.get(path, async (req, res) => {
   try {
     const command = new ListObjectsCommand({ Bucket: BUCKET_NAME });
     const data = await s3Client.send(command);
