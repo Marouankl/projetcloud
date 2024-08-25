@@ -1,5 +1,8 @@
 <template>
   <div>
+    <!-- Title for adding a new book -->
+    <h1>Ajouter un nouveau livre</h1>
+
     <form @submit.prevent="addBook">
       <label for="title">Book Title:</label>
       <input id="title" v-model="title" placeholder="Book Title" required />
@@ -32,6 +35,7 @@
 
 <script setup>
 import { ref } from 'vue';
+import { useRouter } from 'vue-router';
 import axios from 'axios';
 
 const title = ref('');
@@ -42,6 +46,8 @@ const image_url = ref('');
 const message = ref('');
 const isError = ref(false);
 const responseData = ref(null);
+
+const router = useRouter();
 
 const addBook = async () => {
   message.value = '';
@@ -69,7 +75,6 @@ const addBook = async () => {
       { headers: { 'Content-Type': 'application/json' } }
     );
 
-    console.log('Book added successfully:', response.data);
     message.value = 'Book added successfully!';
     responseData.value = response.data;
 
@@ -79,8 +84,10 @@ const addBook = async () => {
     price.value = 0;
     author.value = '';
     image_url.value = '';
+
+    // Redirect to /books
+    router.push('/books');
   } catch (error) {
-    console.error('Error adding book:', error.response || error.message || error);
     isError.value = true;
     message.value = 'Error adding book';
   }
