@@ -1,45 +1,39 @@
 const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
-const { DeleteCommand, DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand, ScanCommand } = require('@aws-sdk/lib-dynamodb');
+const { DynamoDBDocumentClient, GetCommand, PutCommand, DeleteCommand, ScanCommand } = require('@aws-sdk/lib-dynamodb');
 const { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, ListObjectsCommand } = require('@aws-sdk/client-s3');
 const awsServerlessExpressMiddleware = require('aws-serverless-express/middleware');
 const bodyParser = require('body-parser');
 const express = require('express');
 
+// Initialize DynamoDB client
 const ddbClient = new DynamoDBClient({ region: process.env.TABLE_REGION });
 const ddbDocClient = DynamoDBDocumentClient.from(ddbClient);
 
 const s3Client = new S3Client({ region: process.env.TABLE_REGION });
-const BUCKET_NAME = process.env.S3_BUCKET_NAME;
+const BUCKET_NAME = 's3-book-images';  // Update with your actual bucket name
 
-let tableName = "booksTable";
-if (process.env.ENV && process.env.ENV !== "NONE") {
-  tableName += '-' + process.env.ENV;
-}
-
-const userIdPresent = false; // TODO: Update if needed
-const partitionKeyName = "id";
-const partitionKeyType = "N";
-const sortKeyName = "";
-const sortKeyType = "";
-const hasSortKey = sortKeyName !== "";
-const path = "/books";
-const UNAUTH = 'UNAUTH';
-const hashKeyPath = '/:' + partitionKeyName;
-const sortKeyPath = hasSortKey ? '/:' + sortKeyName : '';
+const tableName = process.env.TABLE_NAME || "booksTable";
 
 // Declare a new express app
 const app = express();
 app.use(bodyParser.json());
 app.use(awsServerlessExpressMiddleware.eventContext());
 
-// Enable CORS for all methods
+// Enable CORS
 app.use((req, res, next) => {
   res.header("Access-Control-Allow-Origin", "*");
   res.header("Access-Control-Allow-Headers", "Content-Type");
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+
+  // Réponse aux requêtes OPTIONS
+  if (req.method === 'OPTIONS') {
+    return res.status(204).end(); // Pas de contenu à renvoyer pour OPTIONS
+  }
+
   next();
 });
 
-// Convert URL string param to expected Type
+// Helper function to convert URL params to the expected type
 const convertUrlType = (param, type) => {
   switch(type) {
     case "N":
@@ -49,8 +43,8 @@ const convertUrlType = (param, type) => {
   }
 };
 
-// HTTP Get method to list DynamoDB objects
-app.get(path, async (req, res) => {
+// DynamoDB Routes
+app.get('/books', async (req, res) => {
   const params = {
     TableName: tableName,
     Select: 'ALL_ATTRIBUTES',
@@ -60,137 +54,99 @@ app.get(path, async (req, res) => {
     const data = await ddbDocClient.send(new ScanCommand(params));
     res.json(data.Items);
   } catch (err) {
-    res.status(500).json({error: 'Could not load items: ' + err.message});
+    res.status(500).json({ error: 'Could not load items: ' + err.message });
   }
 });
 
-// HTTP Get method to query DynamoDB objects
-app.get(path + hashKeyPath, async (req, res) => {
-  const condition = {
-    [partitionKeyName]: {
-      ComparisonOperator: 'EQ',
-      AttributeValueList: []
-    }
-  };
-
-  if (userIdPresent && req.apiGateway) {
-    condition[partitionKeyName].AttributeValueList.push(req.apiGateway.event.requestContext.identity.cognitoIdentityId || UNAUTH);
-  } else {
-    try {
-      condition[partitionKeyName].AttributeValueList.push(convertUrlType(req.params[partitionKeyName], partitionKeyType));
-    } catch (err) {
-      return res.status(500).json({error: 'Wrong column type: ' + err.message});
-    }
-  }
-
-  const queryParams = {
-    TableName: tableName,
-    KeyConditions: condition
-  };
-
-  try {
-    const data = await ddbDocClient.send(new QueryCommand(queryParams));
-    res.json(data.Items);
-  } catch (err) {
-    res.status(500).json({error: 'Could not load items: ' + err.message});
-  }
-});
-
-// HTTP Get method for getting a single DynamoDB object
 app.get('/books/:id', async (req, res) => {
-  const params = {};
-  params[partitionKeyName] = convertUrlType(req.params[partitionKeyName], partitionKeyType);
-
-  const getItemParams = {
+  const params = {
     TableName: tableName,
-    Key: params
+    Key: {
+      id: req.params.id
+    }
   };
 
   try {
-    const data = await ddbDocClient.send(new GetCommand(getItemParams));
+    const data = await ddbDocClient.send(new GetCommand(params));
     res.json(data.Item || {});
   } catch (err) {
-    res.status(500).json({error: 'Could not load item: ' + err.message});
+    res.status(500).json({ error: 'Could not load item: ' + err.message });
   }
 });
 
-// HTTP Put method for inserting DynamoDB object
-app.put(path, async (req, res) => {
-  if (!req.body[partitionKeyName]) {
-    req.body[partitionKeyName] = Date.now();  // Génération d'un ID unique basé sur l'heure actuelle
+app.post('/books', async (req, res) => {
+  const newBook = req.body;
+
+  // Validate and generate an ID if not provided
+  if (!newBook.id) {
+    newBook.id = String(Date.now());
   }
 
-  const putItemParams = {
+  const params = {
     TableName: tableName,
-    Item: req.body
+    Item: newBook
   };
 
   try {
-    await ddbDocClient.send(new PutCommand(putItemParams));
-    res.json({ success: 'Put call succeeded!', data: req.body });
+    // Log the data being sent to DynamoDB
+    console.log('Adding book to DynamoDB:', newBook);
+
+    // Add the book to DynamoDB
+    await ddbDocClient.send(new PutCommand(params));
+
+    // Fetch the item back from DynamoDB to ensure it was stored correctly
+    const getItemParams = {
+      TableName: tableName,
+      Key: { id: newBook.id }
+    };
+    const result = await ddbDocClient.send(new GetCommand(getItemParams));
+
+    // Log the retrieved item
+    console.log('Retrieved book from DynamoDB:', result.Item);
+
+    // Return the complete book data in the response
+    res.json({ success: 'Book added successfully!', data: result.Item });
   } catch (err) {
-    res.status(500).json({ error: 'Could not insert item: ' + err.message });
+    res.status(500).json({ error: 'Could not add book: ' + err.message });
   }
 });
 
 
-// HTTP Post method for inserting DynamoDB object
-app.post(path, async (req, res) => {
-  if (!req.body[partitionKeyName]) {
-    req.body[partitionKeyName] = Date.now();  // Génération d'un ID unique basé sur l'heure actuelle
-  }
-
-  const putItemParams = {
+app.put('/books/:id', async (req, res) => {
+  const params = {
     TableName: tableName,
-    Item: req.body
-  };
-
-  try {
-    await ddbDocClient.send(new PutCommand(putItemParams));
-    res.json({ success: 'Post call succeeded!', data: req.body });
-  } catch (err) {
-    res.status(500).json({ error: 'Could not insert item: ' + err.message });
-  }
-});
-
-// HTTP Delete method for removing DynamoDB object
-app.delete(path + '/object' + hashKeyPath + sortKeyPath, async (req, res) => {
-  const params = {};
-  if (userIdPresent && req.apiGateway) {
-    params[partitionKeyName] = req.apiGateway.event.requestContext.identity.cognitoIdentityId || UNAUTH;
-  } else {
-    params[partitionKeyName] = req.params[partitionKeyName];
-    try {
-      params[partitionKeyName] = convertUrlType(req.params[partitionKeyName], partitionKeyType);
-    } catch (err) {
-      return res.status(500).json({error: 'Wrong column type: ' + err.message});
+    Item: {
+      id: req.params.id,
+      ...req.body
     }
-  }
-
-  if (hasSortKey) {
-    try {
-      params[sortKeyName] = convertUrlType(req.params[sortKeyName], sortKeyType);
-    } catch (err) {
-      return res.status(500).json({error: 'Wrong column type: ' + err.message});
-    }
-  }
-
-  const removeItemParams = {
-    TableName: tableName,
-    Key: params
   };
 
   try {
-    const data = await ddbDocClient.send(new DeleteCommand(removeItemParams));
-    res.json({ success: 'Delete call succeeded!', data });
+    await ddbDocClient.send(new PutCommand(params));
+    res.json({ success: 'Item created/updated successfully!', data: params.Item });
   } catch (err) {
-    res.status(500).json({error: 'Could not delete item: ' + err.message});
+    res.status(500).json({ error: 'Could not create/update item: ' + err.message });
+  }
+});
+
+app.delete('/books/:id', async (req, res) => {
+  const params = {
+    TableName: tableName,
+    Key: {
+      id: req.params.id
+    }
+  };
+
+  try {
+    await ddbDocClient.send(new DeleteCommand(params));
+    res.json({ success: 'Item deleted successfully!' });
+  } catch (err) {
+    res.status(500).json({ error: 'Could not delete item: ' + err.message });
   }
 });
 
 // S3 Routes
-// Upload file to S3
-app.post(path, async (req, res) => {
+app.post('/upload', async (req, res) => {
   const { fileName, fileContent } = req.body;
 
   if (!fileName || !fileContent) {
@@ -201,8 +157,8 @@ app.post(path, async (req, res) => {
     const command = new PutObjectCommand({
       Bucket: BUCKET_NAME,
       Key: fileName,
-      Body: Buffer.from(fileContent, 'base64'), // Encodage en base64
-      ContentEncoding: 'base64', // Encodage défini comme base64
+      Body: Buffer.from(fileContent, 'base64'),
+      ContentEncoding: 'base64',
     });
     await s3Client.send(command);
     res.json({ success: 'File uploaded successfully' });
@@ -211,8 +167,7 @@ app.post(path, async (req, res) => {
   }
 });
 
-// List files in S3 bucket
-app.get(path, async (req, res) => {
+app.get('/list', async (req, res) => {
   try {
     const command = new ListObjectsCommand({ Bucket: BUCKET_NAME });
     const data = await s3Client.send(command);
@@ -222,7 +177,6 @@ app.get(path, async (req, res) => {
   }
 });
 
-// Download file from S3
 app.get('/download/:fileName', async (req, res) => {
   const fileName = req.params.fileName;
 
@@ -239,7 +193,6 @@ app.get('/download/:fileName', async (req, res) => {
   }
 });
 
-// Delete file from S3
 app.delete('/delete/:fileName', async (req, res) => {
   const fileName = req.params.fileName;
 

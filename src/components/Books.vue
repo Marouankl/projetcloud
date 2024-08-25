@@ -5,7 +5,7 @@
     <h2>Liste des Livres</h2>
     <div v-if="books.length > 0" class="books-container">
       <div v-for="book in books" :key="book.id" class="book-card">
-        <img :src="book.coverImageUrl" :alt="book.title" class="book-cover" />
+        <img :src="book.image_url" :alt="book.title" class="book-cover" />
         <div class="book-details">
           <h3 class="book-title">{{ book.title }}</h3>
           <p class="book-price">Prix: {{ book.price }} €</p>
@@ -38,7 +38,7 @@ const fetchBooks = async () => {
     
     books.value = booksData.map(book => ({
       ...book,
-      coverImageUrl: book.coverImageUrl // Assurez-vous que l'URL de l'image est correctement définie
+      image_url: book.image_url // Assurez-vous que l'URL de l'image est correctement définie
     }));
   } catch (error) {
     console.error('Error fetching books:', error);
