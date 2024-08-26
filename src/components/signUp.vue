@@ -21,7 +21,7 @@
       <button type="submit">S'inscrire</button>
     </form>
     <p v-if="error" class="error-message">{{ error }}</p>
-    <p class="signin-link">Déjà un compte ? <router-link to="/signin">Connectez-vous</router-link></p>
+    <p class="signin-link">Déjà un compte ? <router-link to="/">Connectez-vous</router-link></p>
   </div>
 </template>
 
