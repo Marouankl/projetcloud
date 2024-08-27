@@ -3,7 +3,7 @@
     <h2>Connexion</h2>
     <form @submit.prevent="handleSignIn">
       <div class="form-group">
-        <label for="username">Nom d'utilisateur</label>
+        <label for="username">E-mail d'utilisateur</label>
         <input v-model="form.username" type="text" id="username" required />
       </div>
       <div class="form-group">

@@ -45,7 +45,7 @@ const loading = ref(false);
 const fetchBooks = async () => {
   loading.value = true;
   try {
-    const response = await axios.get('https://8sddxq83tf.execute-api.us-east-1.amazonaws.com/prod/books');
+    const response = await axios.get('https://bayiajcksa.execute-api.us-east-1.amazonaws.com/prod/books');
     const booksData = response.data;
     books.value = booksData.map(book => ({
       ...book,

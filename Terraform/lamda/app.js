@@ -107,6 +107,7 @@ app.post('/books', async (req, res) => {
     // Return the complete book data in the response
     res.json({ success: 'Book added successfully!', data: result.Item });
   } catch (err) {
+    console.error('Error adding book:', err.message);
     res.status(500).json({ error: 'Could not add book: ' + err.message });
   }
 });

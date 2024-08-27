@@ -84,7 +84,7 @@ const addBook = async () => {
   try {
     // Make API request to add book
     const response = await axios.post(
-      'https://8sddxq83tf.execute-api.us-east-1.amazonaws.com/prod/books',
+      'https://bayiajcksa.execute-api.us-east-1.amazonaws.com/prod/books',
       bookData,
       { headers: { 'Content-Type': 'application/json' } }
     );
