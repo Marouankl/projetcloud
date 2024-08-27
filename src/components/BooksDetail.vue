@@ -7,8 +7,8 @@
       <p>Description: {{ book.description }}</p>
       <p>Prix: {{ book.price }}</p>
       <p>Auteur: {{ book.author }}</p>
-      <p>Date de publication: {{ book.publication_date }}</p>
-      <p>Domaine: {{ book.domain }}</p>
+     
+      <p>Domaine: {{ book.image_url }}</p>
     </div>
     <p v-else-if="loading">Chargement...</p>
     <p v-else>Livre non trouvé.</p>
@@ -26,7 +26,7 @@ const route = useRoute();
 const fetchBookDetails = async (book_id) => {
   loading.value = true;
   try {
-    const response = await fetch(`https://nqkghrejc2.execute-api.us-east-1.amazonaws.com/prod/books/${book_id}`);
+    const response = await fetch(`https://bayiajcksa.execute-api.us-east-1.amazonaws.com/prod/books/${book_id}`);
     if (!response.ok) {
       throw new Error('Failed to fetch book details');
     }

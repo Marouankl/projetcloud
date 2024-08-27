@@ -6,3 +6,7 @@ node_modules/
 
 # Ignorer les répertoires Lambda ZIP
 lamda.zip/
+
+terraform.tfstate/
+
+terraform.tfstate.backup/
